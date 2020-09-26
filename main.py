@@ -45,9 +45,9 @@ def user_entering_name(message):
         dbworker.set_state(message.chat.id, config.States.S_GET_DATE.value)
     except ValueError:
         bot.send_message(message.chat.id, "Проблема з форматом вводу дати. Спробуй ще раз.")
-        bot.send_message(message.chat.id, '(dd/mm/yyyy)')
+        bot.send_message(message.chat.id, '(dd.mm.yyyy)')
 
-
+#request next payment for user
 @bot.message_handler(func=lambda message: dbworker.get_current_state(
     message.chat.id) == config.States.S_GET_DATE.value)
 def get_date(message):
@@ -62,7 +62,7 @@ def get_date(message):
 
 
 
-
+# function for send massege with remind
 def remind():
     now = datetime.datetime.now()
     conn = sqlite3.connect("reminder.db")
@@ -73,10 +73,34 @@ def remind():
         time = row[2]
         target_date = datetime.datetime.strptime(time, "%d.%m.%Y")
         diff = target_date - now
-        print(diff)
         if diff.days <= 2:
             chat_id = row[1]
             bot.send_message(chat_id, 'Нагадування!!! Проплата AppleMusic через 2 дня.')
+            break
 
+#function for overwritting date in database
+def overwritting():
+    now = datetime.datetime.now()
+    conn = sqlite3.connect("reminder.db")
+    cursorObj = conn.cursor()
+    cursorObj.execute('SELECT * FROM user_family')
+    rows = cursorObj.fetchall()
+    conn.close()
+    for row in rows:
+        time = row[2]
+        target_date = datetime.datetime.strptime(time, "%d.%m.%Y")
+        diff = target_date - now
+        if diff.days <= 1:
+            chat_id = row[1]
+            new_date = target_date + datetime.timedelta(days = (len(rows)*30))
+            print(new_date)
+            conn = sqlite3.connect("reminder.db")
+            cursor = conn.cursor()
+            sql = ('''UPDATE user_family SET next_payment = ? WHERE user_id = ?''')
+            cursor.execute(sql, (new_date.strftime("%d.%m.%Y"), chat_id))
+            conn.commit()
+            conn.close()
+            print('na naxuy')
+            break
 
 bot.polling()
